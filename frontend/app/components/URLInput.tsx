@@ -8,8 +8,8 @@ interface URLInputProps {
   isLoading: boolean;
 }
 
-const YOUTUBE_REGEX =
-  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/live\/)[\w-]+/;
+const VIDEO_URL_REGEX =
+  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=[\w-]+|youtu\.be\/[\w-]+|youtube\.com\/live\/[\w-]+|bilibili\.com\/video\/(BV|av)[\w]+|b23\.tv\/[\w]+)/;
 
 export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
   const [url, setUrl] = useState('');
@@ -19,11 +19,11 @@ export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
 
   const validateUrl = useCallback((value: string): boolean => {
     if (!value.trim()) {
-      setError('Please enter a YouTube URL');
+      setError('Please enter a video URL');
       return false;
     }
-    if (!YOUTUBE_REGEX.test(value.trim())) {
-      setError('Invalid URL — paste a YouTube video or live stream link');
+    if (!VIDEO_URL_REGEX.test(value.trim())) {
+      setError('Invalid URL — paste a YouTube or Bilibili video link');
       return false;
     }
     setError(null);
@@ -52,7 +52,7 @@ export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
     // Auto-validate on paste
     setTimeout(() => {
       const pasted = e.currentTarget.value;
-      if (pasted && YOUTUBE_REGEX.test(pasted.trim())) {
+      if (pasted && VIDEO_URL_REGEX.test(pasted.trim())) {
         setError(null);
       }
     }, 0);
@@ -99,7 +99,7 @@ export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
               onPaste={handlePaste}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
-              placeholder="Paste YouTube URL here..."
+              placeholder="Paste YouTube or Bilibili URL here..."
               disabled={isLoading}
               className="flex-1 bg-transparent border-none outline-none text-white 
                          placeholder:text-gray-500 text-sm py-2

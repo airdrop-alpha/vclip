@@ -26,17 +26,22 @@ from app.workers.pipeline import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
-# Regex for validating YouTube URLs
-YOUTUBE_URL_PATTERN = re.compile(
+# Regex for validating supported video URLs
+SUPPORTED_URL_PATTERN = re.compile(
     r"(https?://)?(www\.)?"
-    r"(youtube\.com/watch\?v=|youtu\.be/|youtube\.com/live/)"
-    r"[\w\-]+"
+    r"("
+    r"youtube\.com/watch\?v=[\w\-]+"
+    r"|youtu\.be/[\w\-]+"
+    r"|youtube\.com/live/[\w\-]+"
+    r"|bilibili\.com/video/(?:BV|av)[\w]+"
+    r"|b23\.tv/[\w]+"
+    r")"
 )
 
 
-def _validate_youtube_url(url: str) -> bool:
-    """Validate that the URL looks like a YouTube video URL."""
-    return bool(YOUTUBE_URL_PATTERN.match(url))
+def _validate_video_url(url: str) -> bool:
+    """Validate that the URL is a supported video platform URL."""
+    return bool(SUPPORTED_URL_PATTERN.match(url))
 
 
 @router.post("", response_model=JobCreateResponse)
@@ -47,11 +52,12 @@ async def create_new_job(request: JobCreateRequest, background_tasks: Background
     Accepts a YouTube URL and processing options.
     Returns immediately with a job_id for status polling.
     """
-    if not _validate_youtube_url(request.url):
+    if not _validate_video_url(request.url):
         raise HTTPException(
             status_code=400,
-            detail="Invalid YouTube URL. Supported formats: "
-                   "youtube.com/watch?v=..., youtu.be/..., youtube.com/live/..."
+            detail="Invalid video URL. Supported: "
+                   "youtube.com/watch?v=..., youtu.be/..., youtube.com/live/..., "
+                   "bilibili.com/video/BVxxx, b23.tv/xxx"
         )
 
     job_id = await create_job(request)

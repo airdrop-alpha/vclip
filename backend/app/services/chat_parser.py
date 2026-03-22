@@ -35,11 +35,16 @@ def parse_live_chat(url: str, job_id: str = "") -> list[ChatMessage]:
     """
     logger.info(f"[{job_id}] Parsing live chat for {url}")
 
+    is_bilibili = "bilibili.com" in url or "b23.tv" in url
+
     try:
-        messages = _download_chat_yt_dlp(url)
+        if is_bilibili:
+            messages = _download_danmaku_bilibili(url, job_id)
+        else:
+            messages = _download_chat_yt_dlp(url)
     except Exception as e:
         logger.warning(f"[{job_id}] Could not extract live chat: {e}")
-        logger.info(f"[{job_id}] Video may not be a livestream — returning empty chat")
+        logger.info(f"[{job_id}] Video may not have chat/danmaku — returning empty")
         return []
 
     if not messages:
@@ -51,6 +56,172 @@ def parse_live_chat(url: str, job_id: str = "") -> list[ChatMessage]:
     logger.info(f"[{job_id}] Parsed {len(messages)} chat messages")
 
     return messages
+
+
+def _download_danmaku_bilibili(url: str, job_id: str = "") -> list[ChatMessage]:
+    """
+    Download danmaku (弾幕) from Bilibili using yt-dlp's subtitle extraction.
+
+    Bilibili danmaku is available as XML subtitles via yt-dlp.
+    Format: <d p="time,type,size,color,timestamp,pool,uid,rowID">text</d>
+    """
+    import xml.etree.ElementTree as ET
+
+    with tempfile.TemporaryDirectory(prefix="vclip_danmaku_") as tmpdir:
+        output_template = str(Path(tmpdir) / "video")
+
+        # yt-dlp can extract Bilibili danmaku as subtitles
+        cmd = [
+            "yt-dlp",
+            "--skip-download",
+            "--write-subs",
+            "--sub-langs", "danmaku",
+            "--output", output_template,
+            url,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+
+        # Look for danmaku XML file
+        danmaku_files = list(Path(tmpdir).glob("*.danmaku*")) + list(Path(tmpdir).glob("*.xml"))
+        if not danmaku_files:
+            # Try alternative: yt-dlp sometimes saves as .ass or different format
+            danmaku_files = list(Path(tmpdir).glob("*.*"))
+            danmaku_files = [f for f in danmaku_files if f.suffix in ('.xml', '.ass', '.json')]
+
+        if not danmaku_files:
+            logger.info(f"[{job_id}] No danmaku file found for Bilibili video")
+            # Fallback: try to get comments via yt-dlp JSON
+            return _bilibili_comments_fallback(url, job_id)
+
+        danmaku_path = danmaku_files[0]
+        logger.info(f"[{job_id}] Found danmaku file: {danmaku_path.name} ({danmaku_path.stat().st_size} bytes)")
+
+        # Parse based on file type
+        if danmaku_path.suffix == '.xml':
+            return _parse_bilibili_xml_danmaku(danmaku_path)
+        else:
+            # Try parsing as XML anyway (Bilibili danmaku is usually XML)
+            try:
+                return _parse_bilibili_xml_danmaku(danmaku_path)
+            except Exception:
+                logger.warning(f"[{job_id}] Could not parse danmaku file as XML")
+                return _bilibili_comments_fallback(url, job_id)
+
+
+def _parse_bilibili_xml_danmaku(xml_path: Path) -> list[ChatMessage]:
+    """
+    Parse Bilibili XML danmaku format.
+
+    XML format:
+    <i>
+      <d p="time,type,fontsize,color,timestamp,pool,uid_hash,rowID">弾幕text</d>
+    </i>
+
+    p attributes:
+    - time: appearance time in seconds (float)
+    - type: 1=scroll, 4=bottom, 5=top, 6=reverse, 7=special, 8=code
+    - fontsize: 25=normal, 18=small
+    - color: decimal color value
+    - timestamp: Unix timestamp of when danmaku was sent
+    - pool: 0=normal, 1=subtitle, 2=special
+    - uid_hash: hashed user ID
+    - rowID: danmaku row ID
+    """
+    import xml.etree.ElementTree as ET
+
+    messages: list[ChatMessage] = []
+
+    try:
+        tree = ET.parse(xml_path)
+        root = tree.getroot()
+    except ET.ParseError as e:
+        logger.warning(f"Failed to parse danmaku XML: {e}")
+        return []
+
+    for d_elem in root.iter('d'):
+        p_attr = d_elem.get('p', '')
+        text = d_elem.text or ''
+        text = text.strip()
+
+        if not text or not p_attr:
+            continue
+
+        parts = p_attr.split(',')
+        if len(parts) < 3:
+            continue
+
+        try:
+            timestamp = float(parts[0])
+            # uid_hash for unique author identification
+            uid_hash = parts[6] if len(parts) > 6 else "unknown"
+
+            messages.append(ChatMessage(
+                timestamp=timestamp,
+                author=uid_hash,
+                message=text,
+                is_member=False,
+                is_superchat=False,
+            ))
+        except (ValueError, IndexError):
+            continue
+
+    logger.info(f"Parsed {len(messages)} danmaku messages from XML")
+    return messages
+
+
+def _bilibili_comments_fallback(url: str, job_id: str = "") -> list[ChatMessage]:
+    """
+    Fallback: extract Bilibili video comments via yt-dlp --write-comments.
+    Less useful than danmaku but better than nothing.
+    """
+    with tempfile.TemporaryDirectory(prefix="vclip_bili_") as tmpdir:
+        output_template = str(Path(tmpdir) / "video")
+
+        cmd = [
+            "yt-dlp",
+            "--skip-download",
+            "--write-comments",
+            "--output", output_template,
+            url,
+        ]
+
+        try:
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+        except subprocess.TimeoutExpired:
+            logger.warning(f"[{job_id}] Bilibili comment extraction timed out")
+            return []
+
+        # Check for info.json with comments
+        info_files = list(Path(tmpdir).glob("*.info.json"))
+        if not info_files:
+            return []
+
+        try:
+            with open(info_files[0], 'r', encoding='utf-8') as f:
+                info = json.load(f)
+
+            comments = info.get('comments', [])
+            messages = []
+            for c in comments:
+                text = c.get('text', '').strip()
+                if not text:
+                    continue
+                # Comments don't have video timestamps, use 0
+                messages.append(ChatMessage(
+                    timestamp=0.0,
+                    author=c.get('author', 'unknown'),
+                    message=text,
+                    is_member=False,
+                    is_superchat=False,
+                ))
+
+            logger.info(f"[{job_id}] Bilibili fallback: {len(messages)} comments")
+            return messages
+
+        except (json.JSONDecodeError, KeyError) as e:
+            logger.warning(f"[{job_id}] Failed to parse Bilibili comments: {e}")
+            return []
 
 
 def _download_chat_yt_dlp(url: str) -> list[ChatMessage]:

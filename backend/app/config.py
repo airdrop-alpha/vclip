@@ -13,7 +13,7 @@ class Settings(BaseModel):
     host: str = "0.0.0.0"
     port: int = 8000
     debug: bool = False
-    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173"]
+    cors_origins: list[str] = ["http://localhost:3000", "http://localhost:5173", "https://vclip.pages.dev", "https://*.vclip.pages.dev", "https://*.trycloudflare.com"]
 
     # Paths
     data_dir: Path = Path(os.environ.get("VCLIP_DATA_DIR", "./data"))
