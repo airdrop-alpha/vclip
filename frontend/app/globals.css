@@ -1,0 +1,259 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   VClip — Global Styles (Dark VTuber/Gaming Aesthetic)
+   ============================================================ */
+
+:root {
+  --color-primary: #8B5CF6;
+  --color-accent: #EC4899;
+  --color-bg: #111827;
+  --color-card: #1F2937;
+  --color-border: #374151;
+}
+
+/* Base */
+html {
+  color-scheme: dark;
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: #e5e7eb;
+  min-height: 100vh;
+}
+
+/* Selection color */
+::selection {
+  background-color: rgba(139, 92, 246, 0.3);
+  color: #fff;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #4b5563;
+}
+
+/* ============================================================
+   Utility Classes
+   ============================================================ */
+
+@layer utilities {
+  /* Gradient text */
+  .gradient-text {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #8B5CF6, #EC4899);
+  }
+
+  /* Glassmorphism card */
+  .glass-card {
+    @apply rounded-xl border border-white/5;
+    background: rgba(31, 41, 55, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Glowing border on focus */
+  .glow-focus {
+    @apply transition-shadow duration-300;
+  }
+  .glow-focus:focus-within {
+    box-shadow:
+      0 0 0 1px rgba(139, 92, 246, 0.5),
+      0 0 20px rgba(139, 92, 246, 0.15);
+  }
+
+  /* Shimmer loading effect */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 2s linear infinite;
+  }
+
+  /* Score color utilities */
+  .score-high {
+    @apply text-green-400;
+  }
+  .score-medium {
+    @apply text-yellow-400;
+  }
+  .score-low {
+    @apply text-orange-400;
+  }
+
+  /* Smooth transition for all interactive elements */
+  .interactive {
+    @apply transition-all duration-200 ease-out;
+  }
+}
+
+/* ============================================================
+   Component Styles
+   ============================================================ */
+
+@layer components {
+  /* Primary button */
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 
+           rounded-lg px-5 py-2.5 
+           font-semibold text-white text-sm
+           transition-all duration-200 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background: linear-gradient(135deg, #8B5CF6, #7c3aed);
+  }
+  .btn-primary:not(:disabled):hover {
+    background: linear-gradient(135deg, #a78bfa, #8B5CF6);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(139, 92, 246, 0.3);
+  }
+  .btn-primary:not(:disabled):active {
+    transform: translateY(0);
+  }
+
+  /* Secondary button */
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-lg px-4 py-2
+           font-medium text-sm text-gray-300
+           border border-white/10
+           transition-all duration-200 ease-out
+           hover:border-white/20 hover:text-white hover:bg-white/5
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  /* Accent button (pink) */
+  .btn-accent {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-lg px-5 py-2.5
+           font-semibold text-white text-sm
+           transition-all duration-200 ease-out
+           disabled:opacity-50 disabled:cursor-not-allowed;
+    background: linear-gradient(135deg, #EC4899, #db2777);
+  }
+  .btn-accent:not(:disabled):hover {
+    background: linear-gradient(135deg, #f472b6, #EC4899);
+    transform: translateY(-1px);
+    box-shadow: 0 4px 20px rgba(236, 72, 153, 0.3);
+  }
+
+  /* Ghost button */
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2
+           rounded-lg px-4 py-2
+           font-medium text-sm text-gray-400
+           transition-all duration-200 ease-out
+           hover:text-white hover:bg-white/5;
+  }
+
+  /* Input field */
+  .input-field {
+    @apply w-full rounded-lg px-4 py-3
+           bg-surface-800 border border-white/10
+           text-white placeholder:text-gray-500
+           text-sm
+           transition-all duration-200 ease-out
+           focus:outline-none focus:border-primary-500/50
+           focus:ring-2 focus:ring-primary-500/20;
+  }
+
+  /* Card */
+  .card {
+    @apply rounded-xl border border-white/5 bg-surface-800/80 
+           backdrop-blur-sm
+           transition-all duration-200 ease-out;
+  }
+  .card:hover {
+    @apply border-white/10;
+  }
+
+  /* Badge */
+  .badge {
+    @apply inline-flex items-center gap-1 
+           rounded-full px-2.5 py-0.5
+           text-xs font-medium
+           border;
+  }
+  .badge-purple {
+    @apply badge bg-primary-500/10 text-primary-400 border-primary-500/20;
+  }
+  .badge-pink {
+    @apply badge bg-accent-500/10 text-accent-400 border-accent-500/20;
+  }
+  .badge-green {
+    @apply badge bg-green-500/10 text-green-400 border-green-500/20;
+  }
+  .badge-yellow {
+    @apply badge bg-yellow-500/10 text-yellow-400 border-yellow-500/20;
+  }
+  .badge-blue {
+    @apply badge bg-blue-500/10 text-blue-400 border-blue-500/20;
+  }
+}
+
+/* ============================================================
+   Background pattern (subtle grid)
+   ============================================================ */
+
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ============================================================
+   Progress bar animation
+   ============================================================ */
+
+.progress-bar-fill {
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progress-bar-glow {
+  box-shadow: 
+    0 0 8px rgba(139, 92, 246, 0.4),
+    0 0 24px rgba(139, 92, 246, 0.2);
+}
+
+/* ============================================================
+   Checkbox custom
+   ============================================================ */
+
+.checkbox-custom {
+  @apply appearance-none w-5 h-5 rounded border-2 border-white/20
+         bg-transparent cursor-pointer
+         transition-all duration-150 ease-out
+         checked:bg-primary-500 checked:border-primary-500
+         hover:border-primary-400;
+  background-image: none;
+}
+.checkbox-custom:checked {
+  background-image: url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='M12.207 4.793a1 1 0 010 1.414l-5 5a1 1 0 01-1.414 0l-2-2a1 1 0 011.414-1.414L6.5 9.086l4.293-4.293a1 1 0 011.414 0z'/%3e%3c/svg%3e");
+}
+
+/* ============================================================
+   Video player custom
+   ============================================================ */
+
+video::-webkit-media-controls-panel {
+  background: linear-gradient(transparent, rgba(17, 24, 39, 0.9));
+}

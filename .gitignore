@@ -1,0 +1,82 @@
+# ===========================================
+# VClip .gitignore
+# Python + Node.js + Media
+# ===========================================
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+*.whl
+venv/
+.venv/
+env/
+.env
+*.db
+*.sqlite3
+
+# ---- Node.js ----
+node_modules/
+.next/
+out/
+.turbo/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# ---- Media & Clips ----
+clips/
+*.mp4
+*.mkv
+*.webm
+*.avi
+*.mov
+*.flv
+*.ts
+*.m4a
+*.mp3
+*.wav
+*.ogg
+*.flac
+*.aac
+*.part
+*.ytdl
+
+# ---- Whisper Models (cached) ----
+*.pt
+*.bin
+*.onnx
+
+# ---- IDE ----
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ---- Docker ----
+docker-compose.override.yml
+
+# ---- Testing ----
+.coverage
+htmlcov/
+.pytest_cache/
+.nyc_output/
+coverage/
+
+# ---- Misc ----
+*.log
+*.pid
+*.seed
+.env.local
+.env.*.local
+tmp/
+temp/
