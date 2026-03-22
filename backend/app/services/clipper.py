@@ -121,9 +121,9 @@ def _build_ffmpeg_cmd(
     # Burn in subtitles if provided
     if subtitle_path and subtitle_path.exists():
         # ASS subtitles via the subtitles filter
-        # Need to escape path for ffmpeg filter
-        escaped_path = str(subtitle_path).replace("\\", "\\\\").replace(":", "\\:")
-        filters.append(f"subtitles='{escaped_path}'")
+        # FFmpeg filter escaping: backslash-escape special chars, no surrounding quotes
+        escaped_path = str(subtitle_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
+        filters.append(f"subtitles={escaped_path}")
 
     if filters:
         cmd.extend(["-vf", ",".join(filters)])

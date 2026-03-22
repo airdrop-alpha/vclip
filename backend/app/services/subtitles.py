@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 from typing import Optional
 
+from app.config import settings
 from app.models import SubtitleStyle, TranscriptSegment, WordTimestamp
 
 logger = logging.getLogger(__name__)

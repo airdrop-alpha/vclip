@@ -24,7 +24,7 @@ class Settings(BaseModel):
     # Whisper / STT
     whisper_model: str = os.environ.get("VCLIP_WHISPER_MODEL", "large-v3")
     whisper_device: str = os.environ.get("VCLIP_WHISPER_DEVICE", "auto")
-    whisper_compute_type: str = os.environ.get("VCLIP_WHISPER_COMPUTE", "float16")
+    whisper_compute_type: str = os.environ.get("VCLIP_WHISPER_COMPUTE", "auto")
 
     # Highlight detection
     highlight_window_size: int = 60  # seconds
