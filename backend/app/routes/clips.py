@@ -11,6 +11,7 @@ from pathlib import Path
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
 
+from app.config import settings
 from app.db import get_clip, get_job
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,10 @@ async def download_clip(job_id: str, clip_id: str):
     if clip is None:
         raise HTTPException(status_code=404, detail=f"Clip {clip_id} not found in job {job_id}")
 
-    file_path = Path(clip.file_path)
+    file_path = Path(clip.file_path).resolve()
+    clips_root = settings.clips_dir.resolve()
+    if not str(file_path).startswith(str(clips_root)):
+        raise HTTPException(status_code=403, detail="Access denied")
     if not file_path.exists():
         raise HTTPException(status_code=404, detail="Clip file not found on disk")
 
@@ -65,7 +69,10 @@ async def export_all_clips(job_id: str):
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
         for i, clip in enumerate(job.clips):
-            file_path = Path(clip.file_path)
+            file_path = Path(clip.file_path).resolve()
+            clips_root = settings.clips_dir.resolve()
+            if not str(file_path).startswith(str(clips_root)):
+                continue
             if file_path.exists():
                 # Name clips sequentially with aspect ratio label
                 ratio_label = "landscape" if clip.aspect_ratio.value == "16:9" else "portrait"

@@ -36,6 +36,8 @@ def extract_clip(
     Returns:
         ClipInfo with the path to the generated clip.
     """
+    if not job_id or not all(c in "0123456789abcdef" for c in job_id):
+        raise ValueError(f"Invalid job_id: {job_id}")
     buf = buffer if buffer is not None else settings.highlight_buffer
     clip_id = uuid.uuid4().hex[:12]
 

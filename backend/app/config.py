@@ -38,6 +38,9 @@ class Settings(BaseModel):
     weight_audio: float = 0.30
     weight_keyword: float = 0.25
 
+    # Concurrency
+    max_concurrent_jobs: int = 2
+
     # Clip generation
     default_aspect_ratio: str = "16:9"
     clip_max_duration: int = 120  # seconds

@@ -52,6 +52,12 @@ def extract_metadata(url: str) -> dict[str, Any]:
         return info or {}
 
 
+def _validate_job_id(job_id: str) -> None:
+    """Ensure job_id is a safe hex string (no path traversal)."""
+    if not job_id or not all(c in "0123456789abcdef" for c in job_id):
+        raise ValueError(f"Invalid job_id: {job_id}")
+
+
 def download_video(url: str, job_id: str) -> DownloadResult:
     """
     Download video from YouTube URL + extract audio as 16kHz mono WAV.
@@ -63,6 +69,7 @@ def download_video(url: str, job_id: str) -> DownloadResult:
     Returns:
         DownloadResult with paths to video and audio files plus metadata.
     """
+    _validate_job_id(job_id)
     job_dir = settings.temp_dir / job_id
     job_dir.mkdir(parents=True, exist_ok=True)
 
@@ -81,6 +88,8 @@ def download_video(url: str, job_id: str) -> DownloadResult:
         "progress_hooks": [_progress_hook],
         # Don't download very high res for clipping purposes
         "format_sort": ["res:1080"],
+        # TODO: add max_filesize to limit download size (DoS prevention)
+        # "max_filesize": 5 * 1024 * 1024 * 1024,  # 5 GB
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

@@ -7,6 +7,7 @@ import asyncio
 import logging
 import re
 from typing import Optional
+from urllib.parse import urlparse
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, WebSocket, WebSocketDisconnect
 
@@ -26,22 +27,35 @@ from app.workers.pipeline import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 
-# Regex for validating supported video URLs
+# Strict regex — fullmatch to prevent suffix injection
 SUPPORTED_URL_PATTERN = re.compile(
-    r"(https?://)?(www\.)?"
+    r"https?://(www\.)?"
     r"("
-    r"youtube\.com/watch\?v=[\w\-]+"
-    r"|youtu\.be/[\w\-]+"
-    r"|youtube\.com/live/[\w\-]+"
-    r"|bilibili\.com/video/(?:BV|av)[\w]+"
-    r"|b23\.tv/[\w]+"
-    r")"
+    r"youtube\.com/watch\?v=[\w\-]{11}"
+    r"|youtu\.be/[\w\-]{11}"
+    r"|youtube\.com/live/[\w\-]{11}"
+    r"|bilibili\.com/video/(?:BV[\w]{10}|av\d+)"
+    r"|b23\.tv/[\w]{7}"
+    r")(/?)(\?[\w=&\-]*)?"
 )
 
 
 def _validate_video_url(url: str) -> bool:
-    """Validate that the URL is a supported video platform URL."""
-    return bool(SUPPORTED_URL_PATTERN.match(url))
+    """Validate that the URL is a supported video platform URL (strict)."""
+    url = url.strip()
+    if not url:
+        return False
+    # Must be http(s) — block file://, ftp://, etc.
+    parsed = urlparse(url)
+    if parsed.scheme not in ("http", "https"):
+        return False
+    # Block SSRF: internal/private IPs
+    hostname = parsed.hostname or ""
+    if hostname in ("localhost", "127.0.0.1", "0.0.0.0", "[::1]", ""):
+        return False
+    if hostname.startswith("10.") or hostname.startswith("192.168.") or hostname.startswith("172."):
+        return False
+    return bool(SUPPORTED_URL_PATTERN.fullmatch(url))
 
 
 @router.post("", response_model=JobCreateResponse)
@@ -85,6 +99,10 @@ async def list_all_jobs(limit: int = 50, offset: int = 0):
     return await list_jobs(limit=limit, offset=offset)
 
 
+def _is_valid_hex_id(val: str, length: int = 16) -> bool:
+    return bool(val) and len(val) == length and all(c in "0123456789abcdef" for c in val)
+
+
 @router.get("/{job_id}", response_model=JobResponse)
 async def get_job_status(job_id: str):
     """
@@ -93,6 +111,8 @@ async def get_job_status(job_id: str):
     Returns full job details including detected highlights
     and generated clip download URLs.
     """
+    if not _is_valid_hex_id(job_id):
+        raise HTTPException(status_code=400, detail="Invalid job_id format")
     job = await get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -120,6 +140,11 @@ async def websocket_job_progress(websocket: WebSocket, job_id: str):
         "timestamp": "..."
     }
     """
+    # TODO: add authentication (e.g. token query param) to prevent unauthorized access
+    # Validate job_id format to prevent abuse
+    if not job_id or not all(c in "0123456789abcdef" for c in job_id) or len(job_id) != 16:
+        await websocket.close(code=1008, reason="Invalid job_id")
+        return
     await websocket.accept()
     logger.info(f"WebSocket connected for job {job_id}")
 

@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 class JobStatus(str, Enum):
     PENDING = "pending"
+    QUEUED = "queued"
     DOWNLOADING = "downloading"
     TRANSCRIBING = "transcribing"
     PARSING_CHAT = "parsing_chat"
