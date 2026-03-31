@@ -143,7 +143,7 @@ export default function HighlightCard({
 
             {/* Detection sources */}
             <div className="flex items-center flex-wrap gap-1.5">
-              {highlight.detection_sources.map((source) => (
+              {highlight.contributing_signals.map((source) => (
                 <span
                   key={source}
                   className="inline-flex items-center gap-1 text-[11px] text-gray-400 bg-surface-700/80 px-2 py-0.5 rounded-full"
