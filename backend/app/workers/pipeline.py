@@ -267,3 +267,43 @@ async def run_pipeline(job_id: str, url: str, options: JobOptions) -> None:
             await update_job_status(
                 job_id, JobStatus.FAILED, error=error_msg
             )
+
+
+async def run_pipeline_with_retry(
+    job_id: str,
+    url: str,
+    options: "JobOptions",
+    max_retries: int = 2,
+) -> None:
+    """
+    Wrap run_pipeline with exponential-backoff retry for transient errors.
+
+    Retries on network / download errors but not on permanent failures
+    (e.g. private video, bad URL).
+    """
+    PERMANENT_ERRORS = (
+        "Video unavailable",
+        "Private video",
+        "Invalid job_id",
+        "Authentication required",
+        "HTTP Error 403",
+        "HTTP Error 404",
+    )
+
+    for attempt in range(1, max_retries + 2):
+        try:
+            await run_pipeline(job_id, url, options)
+            return
+        except Exception as e:
+            err_str = str(e)
+            is_permanent = any(p in err_str for p in PERMANENT_ERRORS)
+
+            if is_permanent or attempt > max_retries:
+                raise
+
+            wait = 2 ** attempt  # 2s, 4s, …
+            logger.warning(
+                f"[{job_id}] Attempt {attempt}/{max_retries} failed "
+                f"({type(e).__name__}); retrying in {wait}s"
+            )
+            await asyncio.sleep(wait)

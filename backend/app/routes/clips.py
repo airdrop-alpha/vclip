@@ -7,6 +7,7 @@ import io
 import logging
 import zipfile
 from pathlib import Path
+from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import FileResponse, StreamingResponse
@@ -51,12 +52,19 @@ export_router = APIRouter(prefix="/api/v1/jobs/{job_id}", tags=["export"])
 
 
 @export_router.get("/export")
-async def export_all_clips(job_id: str):
+async def export_all_clips(
+    job_id: str,
+    clip_ids: Optional[str] = None,
+    aspect_ratio: Optional[str] = None,
+):
     """
-    Export all clips for a job as a ZIP archive.
+    Export clips for a job as a ZIP archive.
 
+    Optionally filter by comma-separated clip_ids and/or aspect_ratio.
     Streams the ZIP file without writing to disk.
     """
+    from typing import Optional  # noqa: F811
+
     job = await get_job(job_id)
     if job is None:
         raise HTTPException(status_code=404, detail=f"Job {job_id} not found")
@@ -64,11 +72,19 @@ async def export_all_clips(job_id: str):
     if not job.clips:
         raise HTTPException(status_code=404, detail="No clips available for this job")
 
+    # Apply filters
+    selected_clips = job.clips
+    if clip_ids:
+        allowed = set(clip_ids.split(","))
+        selected_clips = [c for c in selected_clips if c.id in allowed]
+    if aspect_ratio:
+        selected_clips = [c for c in selected_clips if c.aspect_ratio.value == aspect_ratio]
+
     # Build ZIP in memory
     zip_buffer = io.BytesIO()
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
-        for i, clip in enumerate(job.clips):
+        for i, clip in enumerate(selected_clips):
             file_path = Path(clip.file_path).resolve()
             clips_root = settings.clips_dir.resolve()
             if not str(file_path).startswith(str(clips_root)):

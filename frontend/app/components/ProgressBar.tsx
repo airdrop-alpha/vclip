@@ -19,25 +19,41 @@ export default function ProgressBar({
   const [stage, setStage] = useState<JobStatus>('pending');
   const [progress, setProgress] = useState(0);
   const [message, setMessage] = useState('Queued — waiting for worker...');
-  const [estimatedRemaining, setEstimatedRemaining] = useState<number | null>(null);
   const cleanupRef = useRef<(() => void) | null>(null);
+
+  /** Map backend stage to our simplified STAGE_ORDER display step */
+  const getDisplayStageIndex = (s: JobStatus): number => {
+    const map: Record<JobStatus, number> = {
+      pending:      0,
+      queued:       0,
+      downloading:  1,
+      transcribing: 2,
+      parsing_chat: 2,
+      detecting:    3,
+      subtitling:   4,
+      clipping:     4,
+      complete:     5,
+      failed:       -1,
+    };
+    return map[s] ?? 0;
+  };
 
   const handleProgress = useCallback(
     (data: ProgressData) => {
-      setStage(data.stage);
-      setProgress(data.progress);
-      setMessage(data.message || STAGE_LABELS[data.stage]);
-      if (data.estimated_remaining !== undefined) {
-        setEstimatedRemaining(data.estimated_remaining);
-      }
+      // Backend sends `status` (not `stage`)
+      const newStage = data.status;
+      if (!newStage) return;
 
-      if (data.stage === 'complete') {
-        // Fetch the final job data
+      setStage(newStage);
+      setProgress(data.progress);
+      setMessage(data.message || STAGE_LABELS[newStage] || newStage);
+
+      if (newStage === 'complete') {
         getJob(jobId).then(onComplete).catch(() => {
           onError('Failed to fetch completed job');
         });
       }
-      if (data.stage === 'failed') {
+      if (newStage === 'failed') {
         onError(data.message || 'Job failed');
       }
     },
@@ -48,7 +64,7 @@ export default function ProgressBar({
     (job: Job) => {
       setStage(job.status);
       setProgress(job.progress);
-      setMessage(STAGE_LABELS[job.status]);
+      setMessage(job.message || STAGE_LABELS[job.status] || job.status);
 
       if (job.status === 'complete') {
         onComplete(job);
@@ -61,7 +77,6 @@ export default function ProgressBar({
   );
 
   useEffect(() => {
-    // Try WebSocket first, fall back to polling
     let wsCleanup: (() => void) | null = null;
     let pollCleanup: (() => void) | null = null;
     let wsConnected = false;
@@ -73,20 +88,17 @@ export default function ProgressBar({
         handleProgress(data);
       },
       () => {
-        // WebSocket error — fall back to polling
         if (!wsConnected) {
           pollCleanup = pollJobStatus(jobId, handleJobUpdate, 2000);
         }
       },
       () => {
-        // WebSocket closed — fall back to polling if not yet complete
         if (!wsConnected) {
           pollCleanup = pollJobStatus(jobId, handleJobUpdate, 2000);
         }
       }
     );
 
-    // Also start polling as fallback (WebSocket may not connect immediately)
     const fallbackTimeout = setTimeout(() => {
       if (!wsConnected) {
         pollCleanup = pollJobStatus(jobId, handleJobUpdate, 3000);
@@ -104,14 +116,7 @@ export default function ProgressBar({
     };
   }, [jobId, handleProgress, handleJobUpdate]);
 
-  const currentStageIndex = STAGE_ORDER.indexOf(stage);
-
-  const formatTime = (seconds: number): string => {
-    if (seconds < 60) return `~${Math.ceil(seconds)}s`;
-    const min = Math.floor(seconds / 60);
-    const sec = Math.ceil(seconds % 60);
-    return `~${min}m ${sec}s`;
-  };
+  const currentStageIndex = getDisplayStageIndex(stage);
 
   return (
     <div className="card p-5 animate-fade-in">
@@ -125,7 +130,6 @@ export default function ProgressBar({
           return (
             <React.Fragment key={s}>
               <div className="flex items-center gap-1.5 flex-shrink-0">
-                {/* Stage dot */}
                 <div
                   className={`
                     w-2.5 h-2.5 rounded-full transition-all duration-500
@@ -157,7 +161,6 @@ export default function ProgressBar({
                   {STAGE_LABELS[s].replace('...', '')}
                 </span>
               </div>
-              {/* Connector line */}
               {i < STAGE_ORDER.length - 2 && (
                 <div
                   className={`
@@ -186,7 +189,6 @@ export default function ProgressBar({
           `}
           style={{ width: `${Math.max(progress, 2)}%` }}
         >
-          {/* Animated shimmer on active bar */}
           {stage !== 'complete' && stage !== 'failed' && (
             <div className="absolute inset-0 shimmer" />
           )}
@@ -197,52 +199,17 @@ export default function ProgressBar({
       <div className="flex items-center justify-between mt-3">
         <div className="flex items-center gap-2">
           {stage === 'failed' ? (
-            <svg
-              className="w-4 h-4 text-red-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-4 h-4 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ) : stage === 'complete' ? (
-            <svg
-              className="w-4 h-4 text-green-400"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth={2}
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
+            <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
           ) : (
-            <svg
-              className="w-4 h-4 text-primary-400 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
+            <svg className="w-4 h-4 text-primary-400 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           )}
           <span
@@ -257,15 +224,7 @@ export default function ProgressBar({
             {message}
           </span>
         </div>
-
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          {estimatedRemaining !== null &&
-            stage !== 'complete' &&
-            stage !== 'failed' && (
-              <span>{formatTime(estimatedRemaining)} remaining</span>
-            )}
-          <span className="font-mono">{Math.round(progress)}%</span>
-        </div>
+        <span className="text-xs text-gray-500 font-mono">{Math.round(progress)}%</span>
       </div>
     </div>
   );
