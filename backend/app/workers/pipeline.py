@@ -243,6 +243,11 @@ async def run_pipeline(job_id: str, url: str, options: JobOptions) -> None:
                 f"Extracting {len(highlights)} clips..."
             )
 
+            # Determine watermark (free-tier users get watermark)
+            watermark: str | None = None
+            if options.watermark and settings.watermark_enabled:
+                watermark = settings.watermark_text
+
             clips = await loop.run_in_executor(
                 None,
                 extract_clips_batch,
@@ -251,6 +256,8 @@ async def run_pipeline(job_id: str, url: str, options: JobOptions) -> None:
                 job_id,
                 options.aspect_ratios,
                 subtitle_paths,
+                options.template,
+                watermark,
             )
 
             # Save clips to DB

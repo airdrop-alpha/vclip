@@ -1,5 +1,9 @@
 """
 VClip clipper — FFmpeg-based clip extraction from source video.
+
+Supports:
+  - Phase 1: landscape/portrait aspect ratios, subtitle burn-in
+  - Phase 4: template engine (anime/modern/minimal/vhs), watermark overlay
 """
 from __future__ import annotations
 
@@ -7,6 +11,7 @@ import logging
 import subprocess
 import uuid
 from pathlib import Path
+from typing import Optional
 
 from app.config import settings
 from app.models import AspectRatio, ClipInfo, Highlight
@@ -21,6 +26,8 @@ def extract_clip(
     aspect_ratio: AspectRatio = AspectRatio.LANDSCAPE,
     buffer: int | None = None,
     subtitle_path: Path | None = None,
+    template: str = "anime",
+    watermark_text: Optional[str] = None,
 ) -> ClipInfo:
     """
     Extract a clip from the source video at the highlight's timestamps.
@@ -67,6 +74,8 @@ def extract_clip(
         duration=duration,
         aspect_ratio=aspect_ratio,
         subtitle_path=subtitle_path,
+        template=template,
+        watermark_text=watermark_text,
     )
 
     result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
@@ -98,8 +107,12 @@ def _build_ffmpeg_cmd(
     duration: float,
     aspect_ratio: AspectRatio,
     subtitle_path: Path | None = None,
+    template: str = "anime",
+    watermark_text: Optional[str] = None,
 ) -> list[str]:
-    """Build the ffmpeg command for clip extraction."""
+    """Build the ffmpeg command for clip extraction with template support."""
+    from app.services.templates import build_video_filter_chain
+
     cmd = [
         "ffmpeg",
         "-ss", str(start),
@@ -107,25 +120,17 @@ def _build_ffmpeg_cmd(
         "-t", str(duration),
     ]
 
-    # Build filter chain
-    filters: list[str] = []
-
-    if aspect_ratio == AspectRatio.PORTRAIT:
-        # 9:16 center crop from 16:9 source
-        # First scale to ensure minimum height, then crop center
-        filters.append("scale=-2:1920")
-        filters.append("crop=1080:1920:(iw-1080)/2:0")
-    else:
-        # 16:9 — scale to 1920x1080 if needed
-        filters.append("scale=1920:1080:force_original_aspect_ratio=decrease")
-        filters.append("pad=1920:1080:(ow-iw)/2:(oh-ih)/2")
-
-    # Burn in subtitles if provided
+    # Build filter chain via template engine (Phase 4)
+    sub_path_str = None
     if subtitle_path and subtitle_path.exists():
-        # ASS subtitles via the subtitles filter
-        # FFmpeg filter escaping: backslash-escape special chars, no surrounding quotes
-        escaped_path = str(subtitle_path.resolve()).replace("\\", "/").replace(":", "\\:").replace("'", "\\'")
-        filters.append(f"subtitles={escaped_path}")
+        sub_path_str = str(subtitle_path.resolve())
+
+    filters = build_video_filter_chain(
+        template_name=template,
+        aspect_ratio=aspect_ratio,
+        subtitle_path=sub_path_str,
+        watermark_text=watermark_text,
+    )
 
     if filters:
         cmd.extend(["-vf", ",".join(filters)])
@@ -151,6 +156,8 @@ def extract_clips_batch(
     job_id: str,
     aspect_ratios: list[AspectRatio] | None = None,
     subtitle_paths: dict[str, Path] | None = None,
+    template: str = "anime",
+    watermark_text: Optional[str] = None,
 ) -> list[ClipInfo]:
     """
     Extract clips for multiple highlights.
@@ -179,6 +186,8 @@ def extract_clips_batch(
                     job_id=job_id,
                     aspect_ratio=ratio,
                     subtitle_path=sub_path,
+                    template=template,
+                    watermark_text=watermark_text,
                 )
                 clips.append(clip)
                 logger.info(

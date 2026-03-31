@@ -17,6 +17,7 @@ from app.db import get_clip, get_job
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/v1/jobs/{job_id}/clips", tags=["clips"])
+upload_router = APIRouter(prefix="/api/v1/jobs/{job_id}/clips", tags=["upload"])
 
 
 @router.get("/{clip_id}/download")
@@ -115,3 +116,43 @@ async def export_all_clips(
             "Content-Length": str(zip_size),
         },
     )
+
+
+@upload_router.post("/{clip_id}/upload-youtube", tags=["upload"])
+async def upload_clip_to_youtube(
+    job_id: str,
+    clip_id: str,
+    access_token: Optional[str] = None,
+):
+    """
+    Upload a generated clip to YouTube.
+
+    Requires a valid YouTube OAuth2 access_token.
+    Returns the YouTube video URL on success.
+
+    Phase 4 — configure YOUTUBE_CLIENT_ID / YOUTUBE_CLIENT_SECRET in .env.
+    """
+    clip = await get_clip(job_id, clip_id)
+    if clip is None:
+        raise HTTPException(status_code=404, detail=f"Clip {clip_id} not found")
+
+    file_path = Path(clip.file_path).resolve()
+    clips_root = settings.clips_dir.resolve()
+    if not str(file_path).startswith(str(clips_root)):
+        raise HTTPException(status_code=403, detail="Access denied")
+    if not file_path.exists():
+        raise HTTPException(status_code=404, detail="Clip file not found on disk")
+
+    job = await get_job(job_id)
+    title = (job.metadata.title if job and job.metadata else f"VClip highlight {clip_id}")[:100]
+    description = f"Auto-generated highlight by VClip\nhttps://github.com/your-org/vclip"
+
+    from app.services.uploader import upload_to_youtube
+    result = upload_to_youtube(
+        clip_path=file_path,
+        title=f"[VClip] {title}",
+        description=description,
+        tags=["VTuber", "highlight", "clip", "VClip"],
+        access_token=access_token,
+    )
+    return result
