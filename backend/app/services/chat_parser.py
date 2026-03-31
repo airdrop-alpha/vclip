@@ -36,10 +36,13 @@ def parse_live_chat(url: str, job_id: str = "") -> list[ChatMessage]:
     logger.info(f"[{job_id}] Parsing live chat for {url}")
 
     is_bilibili = "bilibili.com" in url or "b23.tv" in url
+    is_twitch = "twitch.tv" in url or "clips.twitch.tv" in url
 
     try:
         if is_bilibili:
             messages = _download_danmaku_bilibili(url, job_id)
+        elif is_twitch:
+            messages = _download_chat_twitch(url, job_id)
         else:
             messages = _download_chat_yt_dlp(url)
     except Exception as e:
@@ -222,6 +225,65 @@ def _bilibili_comments_fallback(url: str, job_id: str = "") -> list[ChatMessage]
         except (json.JSONDecodeError, KeyError) as e:
             logger.warning(f"[{job_id}] Failed to parse Bilibili comments: {e}")
             return []
+
+
+def _download_chat_twitch(url: str, job_id: str = "") -> list[ChatMessage]:
+    """
+    Download Twitch VOD chat via yt-dlp.
+
+    yt-dlp extracts Twitch live chat as a JSON subtitles file.
+    For clips, chat may not be available.
+    """
+    with tempfile.TemporaryDirectory(prefix="vclip_twitch_") as tmpdir:
+        output_template = str(Path(tmpdir) / "chat")
+
+        cmd = [
+            "yt-dlp",
+            "--skip-download",
+            "--write-subs",
+            "--sub-langs", "rechat",
+            "--output", output_template,
+            url,
+        ]
+
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+
+        # Twitch chat is saved as .rechat.json or similar
+        chat_files = (
+            list(Path(tmpdir).glob("*.rechat*"))
+            + list(Path(tmpdir).glob("*.json"))
+        )
+        if not chat_files:
+            logger.info(f"[{job_id}] No Twitch chat file found (clips don't have chat)")
+            return []
+
+        # Twitch rechat format: JSON lines with { message, time_in_seconds, commenter: { display_name } }
+        messages: list[ChatMessage] = []
+        try:
+            with open(chat_files[0], "r", encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if not line:
+                        continue
+                    try:
+                        data = json.loads(line)
+                        text = data.get("message", {}).get("body", "")
+                        ts = float(data.get("content_offset_seconds", 0))
+                        author = (data.get("commenter") or {}).get("display_name", "unknown")
+                        if text:
+                            messages.append(ChatMessage(
+                                timestamp=ts,
+                                author=author,
+                                message=text,
+                            ))
+                    except (json.JSONDecodeError, KeyError, ValueError):
+                        continue
+        except Exception as e:
+            logger.warning(f"[{job_id}] Failed to parse Twitch chat: {e}")
+            return []
+
+        logger.info(f"[{job_id}] Twitch: parsed {len(messages)} chat messages")
+        return messages
 
 
 def _download_chat_yt_dlp(url: str) -> list[ChatMessage]:

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Language, LANGUAGE_OPTIONS } from '@/lib/types';
+import { Language, LANGUAGE_OPTIONS, detectPlatform, PLATFORM_LABELS, PLATFORM_COLORS } from '@/lib/types';
 
 interface URLInputProps {
   onSubmit: (url: string, language: Language) => void;
@@ -9,13 +9,16 @@ interface URLInputProps {
 }
 
 const VIDEO_URL_REGEX =
-  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=[\w-]+|youtu\.be\/[\w-]+|youtube\.com\/live\/[\w-]+|bilibili\.com\/video\/(BV|av)[\w]+|b23\.tv\/[\w]+)/;
+  /^(https?:\/\/)?(www\.)?(youtube\.com\/watch\?v=[\w-]+|youtu\.be\/[\w-]+|youtube\.com\/live\/[\w-]+|bilibili\.com\/video\/(BV|av)[\w]+|b23\.tv\/[\w]+|twitch\.tv\/videos\/\d+|twitch\.tv\/[\w]+\/clip\/[\w-]+|clips\.twitch\.tv\/[\w-]+)/;
 
 export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
   const [url, setUrl] = useState('');
   const [language, setLanguage] = useState<Language>('auto');
   const [error, setError] = useState<string | null>(null);
   const [isFocused, setIsFocused] = useState(false);
+
+  const platform = url.trim() ? detectPlatform(url.trim()) : 'unknown';
+  const showBadge = url.trim().length > 0 && platform !== 'unknown';
 
   const validateUrl = useCallback((value: string): boolean => {
     if (!value.trim()) {
@@ -75,6 +78,17 @@ export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
             }
           `}
         >
+          {/* Platform badge */}
+          {showBadge && (
+            <span
+              className={`
+                ml-2 flex-shrink-0 text-xs font-medium px-2 py-0.5 rounded-full border
+                ${PLATFORM_COLORS[platform]}
+              `}
+            >
+              {PLATFORM_LABELS[platform]}
+            </span>
+          )}
           {/* Input */}
           <div className="flex-1 flex items-center gap-2 px-2">
             <svg
@@ -212,8 +226,7 @@ export default function URLInput({ onSubmit, isLoading }: URLInputProps) {
 
         {/* Supported formats hint */}
         <p className="text-xs text-gray-600 px-1">
-          Supports youtube.com/watch?v=... and youtu.be/... links • Streams up
-          to 8 hours
+          Supports YouTube, Bilibili (BV/av), and Twitch VODs • Streams up to 8 hours
         </p>
       </form>
     </div>

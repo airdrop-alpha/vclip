@@ -31,11 +31,17 @@ router = APIRouter(prefix="/api/v1/jobs", tags=["jobs"])
 SUPPORTED_URL_PATTERN = re.compile(
     r"https?://(www\.)?"
     r"("
+    # YouTube
     r"youtube\.com/watch\?v=[\w\-]{11}"
     r"|youtu\.be/[\w\-]{11}"
     r"|youtube\.com/live/[\w\-]{11}"
+    # Bilibili
     r"|bilibili\.com/video/(?:BV[\w]{10}|av\d+)"
     r"|b23\.tv/[\w]{7}"
+    # Twitch VOD / clip
+    r"|twitch\.tv/videos/\d+"
+    r"|twitch\.tv/[\w]+/clip/[\w\-]+"
+    r"|clips\.twitch\.tv/[\w\-]+"
     r")(/?)(\?[\w=&\-]*)?"
 )
 
@@ -69,9 +75,12 @@ async def create_new_job(request: JobCreateRequest, background_tasks: Background
     if not _validate_video_url(request.url):
         raise HTTPException(
             status_code=400,
-            detail="Invalid video URL. Supported: "
-                   "youtube.com/watch?v=..., youtu.be/..., youtube.com/live/..., "
-                   "bilibili.com/video/BVxxx, b23.tv/xxx"
+            detail=(
+                "Invalid video URL. Supported platforms: "
+                "YouTube (youtube.com/watch?v=..., youtu.be/..., youtube.com/live/...), "
+                "Bilibili (bilibili.com/video/BVxxx, b23.tv/xxx), "
+                "Twitch VOD (twitch.tv/videos/...) and clips"
+            ),
         )
 
     job_id = await create_job(request)

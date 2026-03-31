@@ -123,6 +123,7 @@ export default function Home() {
                   { icon: '🏷️', label: 'Keyword Triggers' },
                   { icon: '📝', label: 'Auto Subtitles' },
                   { icon: '📱', label: '9:16 for Shorts' },
+                  { icon: '🎮', label: 'Bilibili & Twitch' },
                 ].map((f) => (
                   <span
                     key={f.label}
