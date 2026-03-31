@@ -188,6 +188,20 @@ async def run_pipeline(job_id: str, url: str, options: JobOptions) -> None:
             # Limit to max_clips
             highlights = highlights[:options.max_clips]
 
+            # ── Phase 3: LLM re-ranking ──────────────────────────
+            try:
+                from app.services.llm_reranker import rerank_highlights
+                await _notify_progress(
+                    job_id, JobStatus.DETECTING, 65.0, "Re-ranking highlights with AI..."
+                )
+                meta_title = metadata.title if metadata else ""
+                meta_channel = metadata.channel if metadata else ""
+                highlights = await loop.run_in_executor(
+                    None, rerank_highlights, highlights, meta_title, meta_channel
+                )
+            except Exception as e:
+                logger.warning(f"[{job_id}] LLM re-ranking skipped: {e}")
+
             await save_highlights(job_id, highlights)
 
             await _notify_progress(
