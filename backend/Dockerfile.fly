@@ -1,6 +1,6 @@
 FROM python:3.12-slim
 
-# Install system dependencies (ffmpeg for clip generation, git for yt-dlp)
+# Install system dependencies (ffmpeg for clip generation + audio chunking, git for yt-dlp)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     git \
@@ -8,8 +8,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-# Install Python dependencies
-COPY backend/requirements.txt .
+# Install Python dependencies (lightweight — no local whisper model)
+COPY backend/requirements-fly.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
@@ -18,16 +18,15 @@ COPY backend/ .
 # Create data directories
 RUN mkdir -p /app/data/tmp /app/data/clips
 
-# Environment - tuned for Fly.io shared-cpu
+# Environment - tuned for Fly.io shared-cpu with API-based whisper
 ENV VCLIP_HOST=0.0.0.0
 ENV VCLIP_PORT=8080
 ENV VCLIP_DATA_DIR=/app/data
 ENV VCLIP_DB_PATH=/app/data/vclip.db
 ENV VCLIP_TEMP_DIR=/app/data/tmp
 ENV VCLIP_CLIPS_DIR=/app/data/clips
-ENV VCLIP_WHISPER_MODEL=tiny
-ENV VCLIP_WHISPER_DEVICE=cpu
-ENV VCLIP_WHISPER_COMPUTE=int8
+ENV VCLIP_WHISPER_BACKEND=api
+ENV VCLIP_WHISPER_API_MODEL=whisper-large-v3-turbo
 ENV MAX_CONCURRENT_JOBS=1
 
 EXPOSE 8080

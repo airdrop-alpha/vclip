@@ -28,6 +28,20 @@ class Settings(BaseModel):
     clips_dir: Path = Path(os.environ.get("VCLIP_CLIPS_DIR", "./data/clips"))
 
     # Whisper / STT
+    whisper_backend: str = os.environ.get("VCLIP_WHISPER_BACKEND", "replicate")  # replicate | api | local
+    whisper_api_url: str = os.environ.get(
+        "VCLIP_WHISPER_API_URL",
+        "https://api.openai.com/v1/audio/transcriptions",
+    )
+    whisper_api_key: str = os.environ.get("VCLIP_WHISPER_API_KEY", "")
+    whisper_api_model: str = os.environ.get("VCLIP_WHISPER_API_MODEL", "whisper-1")
+    # Replicate backend
+    replicate_api_token: str = os.environ.get("REPLICATE_API_TOKEN", "")
+    replicate_whisper_model: str = os.environ.get(
+        "VCLIP_REPLICATE_MODEL",
+        "openai/whisper",
+    )
+    # Local fallback settings
     whisper_model: str = os.environ.get("VCLIP_WHISPER_MODEL", "large-v3")
     whisper_device: str = os.environ.get("VCLIP_WHISPER_DEVICE", "auto")
     whisper_compute_type: str = os.environ.get("VCLIP_WHISPER_COMPUTE", "auto")

@@ -7,9 +7,9 @@ primary_region = "sin"
 [env]
   VCLIP_HOST = "0.0.0.0"
   VCLIP_PORT = "8080"
-  VCLIP_WHISPER_MODEL = "tiny"
-  VCLIP_WHISPER_DEVICE = "cpu"
-  VCLIP_WHISPER_COMPUTE = "int8"
+  VCLIP_WHISPER_BACKEND = "replicate"
+  VCLIP_WHISPER_API_MODEL = "whisper-1"
+  VCLIP_REPLICATE_MODEL = "openai/whisper"
   VCLIP_DEBUG = "false"
   MAX_CONCURRENT_JOBS = "1"
   VCLIP_WATERMARK = "true"
@@ -27,6 +27,10 @@ primary_region = "sin"
     type = "requests"
     hard_limit = 25
     soft_limit = 20
+
+[mounts]
+  source = "vclip_data"
+  destination = "/app/data"
 
 [[vm]]
   memory = "1gb"
