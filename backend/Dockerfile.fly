@@ -18,6 +18,11 @@ COPY backend/ .
 # Create data directories
 RUN mkdir -p /app/data/tmp /app/data/clips
 
+# Run as non-root user
+RUN groupadd -r appuser && useradd -r -g appuser -d /app appuser
+RUN chown -R appuser:appuser /app
+USER appuser
+
 # Environment - tuned for Fly.io shared-cpu with API-based whisper
 ENV VCLIP_HOST=0.0.0.0
 ENV VCLIP_PORT=8080

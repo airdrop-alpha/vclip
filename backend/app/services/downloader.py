@@ -88,8 +88,7 @@ def download_video(url: str, job_id: str) -> DownloadResult:
         "progress_hooks": [_progress_hook],
         # Don't download very high res for clipping purposes
         "format_sort": ["res:1080"],
-        # TODO: add max_filesize to limit download size (DoS prevention)
-        # "max_filesize": 5 * 1024 * 1024 * 1024,  # 5 GB
+        "max_filesize": 2 * 1024 * 1024 * 1024,  # 2 GB max
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

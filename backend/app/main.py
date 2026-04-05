@@ -72,7 +72,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,
-    allow_origin_regex=r"https://.*\.vclip\.pages\.dev|https://.*\.trycloudflare\.com",
+    allow_origin_regex=r"https://.*\.vclip\.pages\.dev",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

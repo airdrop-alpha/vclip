@@ -18,7 +18,6 @@ class Settings(BaseModel):
         "http://localhost:5173",
         "https://vclip.pages.dev",
         "https://*.vclip.pages.dev",
-        "https://*.trycloudflare.com",
     ]
 
     # Paths

@@ -20,3 +20,4 @@ passlib[bcrypt]>=1.7.4
 
 # Phase 5: Rate limiting
 slowapi>=0.1.9
+psutil>=5.9.0
