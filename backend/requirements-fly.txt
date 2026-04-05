@@ -17,6 +17,7 @@ openai>=1.30.0
 # Phase 4: Auth / JWT
 python-jose[cryptography]>=3.3.0
 passlib[bcrypt]>=1.7.4
+bcrypt<5.0.0
 
 # Phase 5: Rate limiting
 slowapi>=0.1.9
