@@ -1,7 +1,7 @@
 # VClip requirements for Fly.io deployment (API-based whisper, no local model)
 fastapi==0.115.0
 uvicorn==0.34.0
-yt-dlp==2025.1.15
+yt-dlp>=2026.3.17
 numpy==1.26.4
 scipy==1.14.1
 ffmpeg-python==0.2.0
