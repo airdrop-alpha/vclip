@@ -347,6 +347,7 @@ def _transcribe_chunk_replicate(
         "Authorization": f"Bearer {api_token}",
         "Content-Type": "application/json",
         "Prefer": "wait",  # synchronous mode
+        "User-Agent": "VClip/1.0 (https://vclip-api.fly.dev)",
     }
 
     audio_data_url = _upload_file_data_url(audio_path)
@@ -378,7 +379,7 @@ def _transcribe_chunk_replicate(
             import time
             for _ in range(120):  # max 10 min
                 time.sleep(5)
-                poll_resp = client.get(poll_url, headers={"Authorization": f"Bearer {api_token}"})
+                poll_resp = client.get(poll_url, headers={"Authorization": f"Bearer {api_token}", "User-Agent": "VClip/1.0"})
                 result = poll_resp.json()
                 if result.get("status") in ("succeeded", "failed", "canceled"):
                     break
