@@ -25,6 +25,9 @@ logger = logging.getLogger(__name__)
 # ── Local model (lazy) ────────────────────────────────────────
 _model = None
 
+# ── Replicate model version cache ─────────────────────────────
+_replicate_versions: dict[str, str] = {}
+
 
 def _get_model():
     """Lazy-load the faster-whisper model (expensive to initialize)."""
@@ -352,7 +355,23 @@ def _transcribe_chunk_replicate(
 
     audio_data_url = _upload_file_data_url(audio_path)
 
+    # Resolve model version (cached)
+    version_id = _replicate_versions.get(model)
+    if not version_id:
+        version_url = f"https://api.replicate.com/v1/models/{model}"
+        with httpx.Client(timeout=30.0) as client:
+            ver_resp = client.get(version_url, headers={"Authorization": f"Bearer {api_token}", "User-Agent": "VClip/1.0"})
+            if ver_resp.status_code != 200:
+                raise RuntimeError(f"Failed to resolve Replicate model {model}: {ver_resp.status_code}")
+            version_id = ver_resp.json().get("latest_version", {}).get("id")
+            if not version_id:
+                raise RuntimeError(f"No version found for Replicate model {model}")
+            _replicate_versions[model] = version_id
+
+    api_url = "https://api.replicate.com/v1/predictions"
+
     payload = {
+        "version": version_id,
         "input": {
             "audio": audio_data_url,
             "word_timestamps": True,
@@ -360,8 +379,6 @@ def _transcribe_chunk_replicate(
     }
     if language:
         payload["input"]["language"] = language
-
-    api_url = f"https://api.replicate.com/v1/models/{model}/predictions"
 
     with httpx.Client(timeout=600.0) as client:
         resp = client.post(api_url, headers=headers, json=payload)
