@@ -33,7 +33,8 @@ def _hash_password(password: str) -> str:
     try:
         from passlib.context import CryptContext  # type: ignore
         ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        return ctx.hash(password)
+        # bcrypt 5.0+ enforces 72-byte limit; truncate to avoid ValueError
+        return ctx.hash(password[:72])
     except ImportError:
         # Fallback: SHA-256 (not for production — install passlib[bcrypt])
         import hashlib
@@ -47,7 +48,7 @@ def _verify_password(plain: str, hashed: str) -> bool:
     try:
         from passlib.context import CryptContext  # type: ignore
         ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
-        return ctx.verify(plain, hashed)
+        return ctx.verify(plain[:72], hashed)
     except ImportError:
         return False
 
